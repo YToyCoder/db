@@ -1,0 +1,16 @@
+#!/bin/bash
+
+makesure_path() {
+  if [ ! -d $1 ]; then 
+    mkdir $1
+  fi
+}
+
+projPath=$(dirname $0)
+buildPath=$projPath/build
+
+case $1 in 
+  "build_path")
+  makesure_path $buildPath
+  ;;
+esac

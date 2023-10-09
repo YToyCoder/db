@@ -1,0 +1,33 @@
+{
+  "tasks": [
+    {
+      "label": "cmake_build",
+      "command": "cmake",
+      "args": ["-G=Unix Makefiles" , ".."],
+      "options": {
+        "cwd": "${workspaceFolder}/build"
+      },
+      "dependsOn": ["path_build"]
+    },
+    {
+      "label": "path_build",
+      "command": "bash",
+      "args": [ 
+        "${workspaceFolder}/scripts",
+        "build_path" 
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "label": "make_build", 
+      "command": "make",
+      "options": {
+        "cwd": "${workspaceFolder}/build"
+      },
+      "dependsOn": ["cmake_build"]
+    }
+  ],
+  "version": "2.0.0"
+}
