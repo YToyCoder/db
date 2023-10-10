@@ -65,7 +65,14 @@ typedef struct __statement {
   row_t row_to_insert;
 } statement_t;
 
-typedef enum { PREPARE_SUCCESS, PREPARE_UNRECOGNIZED_STATEMENT } PrepareResult; 
+typedef enum { 
+  PREPARE_SUCCESS, 
+  PREPARE_NEGATIVE_ID, 
+  PREPARE_STRING_TOO_LONG,
+  PREPARE_SYTAX_ERROR, 
+  PREPARE_UNRECOGNIZED_STATEMENT 
+} PrepareResult; 
+
 PrepareResult prepare_statement(buf_t*, statement_t*);
 
 typedef enum {
@@ -95,12 +102,28 @@ int main(int argc, char** argv) {
     statement_t statement;
     switch(prepare_statement(read_buf, &statement)) {
       case PREPARE_SUCCESS: break;
+      case PREPARE_SYTAX_ERROR:
+        printf("Syntax error. Cound not parse statement.\n");
+        continue;
+      case PREPARE_NEGATIVE_ID: 
+        printf("ID Must be positive.\n");
+        continue;
+      case PREPARE_STRING_TOO_LONG:
+        printf("String is to long.\n");
+        continue;
       case PREPARE_UNRECOGNIZED_STATEMENT:
-        printf("unrecognized keyword at start of '%s'\n", read_buf->buf);
+        printf("Unrecognized keyword at start of '%s'\n", read_buf->buf);
         break;
     }
 
-    execute_statement(&statement, table);
+    switch(execute_statement(&statement, table)) {
+      case EXECUTE_SUCCESS:
+        printf("Executed.\n");
+        break;
+      case EXECUTE_TABLE_FULL:
+        printf("Error: Table full.\n");
+        break;
+    }
   }
   return 0;
 }
@@ -138,8 +161,34 @@ MetaCommandResult do_meta_command(buf_t* buf) {
 PrepareResult prepare_statement(buf_t* buf, statement_t* statement) {
   if(strncmp(buf->buf, "insert", 6) == 0) {
     statement->kind = STATEMENT_INSERT;
-    int arg_assigned = sscanf(buf->buf, "insert %d %s %s", 
-                              &(statement->row_to_insert.id), &(statement->row_to_insert.username), &(statement->row_to_insert.email));
+    char* keyword = strtok(buf->buf, " ");
+    char* id_string = strtok(NULL, " ");
+    char* username = strtok(NULL, " ");
+    char* email = strtok(NULL, " ");
+
+    // int arg_assigned = sscanf(buf->buf, "insert %d %s %s", 
+    //                           &(statement->row_to_insert.id), &(statement->row_to_insert.username), &(statement->row_to_insert.email));
+    if ( id_string == NULL || username == NULL || email == NULL ) {
+      return PREPARE_SYTAX_ERROR;
+    }
+
+    int id = atoi(id_string);
+    if (id < 0) {
+      return PREPARE_NEGATIVE_ID;
+    }
+
+    if (strlen(username) > COLUMN_USERNAME_SIZE) {
+      return PREPARE_STRING_TOO_LONG;
+    }
+
+    if (strlen(email) > COLUMN_EMAIL_SIZE) {
+      return PREPARE_STRING_TOO_LONG;
+    }
+
+    statement->row_to_insert.id = id;
+    strcpy(statement->row_to_insert.username, username);
+    strcpy(statement->row_to_insert.email, email);
+
     return PREPARE_SUCCESS;
   }
   if(strncmp(buf->buf, "select", 6) == 0) {
