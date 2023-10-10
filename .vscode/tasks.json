@@ -11,7 +11,7 @@
     },
     {
       "label": "path_build",
-      "command": "bash",
+      "command": "D:/App/Git/bin/bash.exe",
       "args": [ 
         "${workspaceFolder}/scripts",
         "build_path" 
