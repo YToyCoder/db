@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.27)
+cmake_minimum_required(VERSION 3.16)
 
 project(db)
 
@@ -11,3 +11,5 @@ target_sources(
   PRIVATE 
   main.c
 )
+
+set_target_properties(db PROPERTIES OUTPUT_NAME "db_exe")

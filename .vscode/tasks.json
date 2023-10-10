@@ -3,7 +3,7 @@
     {
       "label": "cmake_build",
       "command": "cmake",
-      "args": ["-G=Unix Makefiles" , ".."],
+      "args": [".."],
       "options": {
         "cwd": "${workspaceFolder}/build"
       },
@@ -11,7 +11,7 @@
     },
     {
       "label": "path_build",
-      "command": "D:/App/Git/bin/bash.exe",
+      "command": "/bin/bash",
       "args": [ 
         "${workspaceFolder}/scripts",
         "build_path" 

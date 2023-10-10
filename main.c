@@ -10,7 +10,7 @@
 // ---------- buffer ------------- 
 typedef struct __buf {
   char buf[MAX_BUF_SIZE];
-  ssize_t size;
+  size_t size;
 } buf_t;
 
 buf_t* new_buf();
@@ -40,15 +40,21 @@ typedef struct {
 void serialize_row(row_t* , void*);
 void deserialize_row(void* , row_t*);
 
-// ----------- table ------------ 
+// ----------- table & page ------------ 
 #define PAGE_SIZE 4096
 #define TABLE_MAX_PAGES 100
 const uint32_t ROWS_PER_PAGE = PAGE_SIZE / ROW_SIZE;
 const uint32_t TABLE_MAX_ROWS = ROWS_PER_PAGE * TABLE_MAX_PAGES;
 
 typedef struct {
-  uint32_t num_rows;
+  int file_descriptor;
+  uint32_t file_length;
   void* pages[TABLE_MAX_PAGES];
+} page_t;
+
+typedef struct {
+  uint32_t num_rows;
+  page_t* pager;
 } table_t;
 
 void* row_slot(table_t* table, uint32_t row_num);
@@ -81,6 +87,8 @@ typedef enum {
 } ExecuteResult;
 
 ExecuteResult execute_statement(statement_t* statement, table_t* table);
+
+table_t* db_open(const char* filename);
 
 int main(int argc, char** argv) {
   buf_t* read_buf = new_buf();
@@ -213,10 +221,10 @@ void deserialize_row(void* src, row_t* dst) {
 
 void* row_slot(table_t* table, uint32_t row_num) {
   uint32_t page_num = row_num / ROWS_PER_PAGE;
-  void* page = table->pages[page_num];
+  void* page;// = table->pages[page_num];
 
   if (page == NULL) {
-    page = table->pages[page_num] = malloc(PAGE_SIZE);
+    // page = table->pages[page_num] = malloc(PAGE_SIZE);
   }
 
   uint32_t row_offset = row_num % ROWS_PER_PAGE;
@@ -260,12 +268,17 @@ table_t* new_table() {
   table_t* table = (table_t*) malloc(sizeof(table_t));
   table->num_rows = 0;
   for(uint32_t i = 0; i < TABLE_MAX_PAGES; i++)
-    table->pages[i] = NULL;
+  ;
+    // table->pages[i] = NULL;
   return table;
 }
+
 void free_table(table_t* table) {
-  for(int i=0; table->pages[i]; i++) {
-    free(table->pages[i]);
-  }
+  // for(int i=0; table->pages[i]; i++) {
+  //   free(table->pages[i]);
+  // }
   free(table);
+}
+
+table_t* db_open(const char* filename) {
 }
