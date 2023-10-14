@@ -11,6 +11,10 @@
 #define MAX_BUF_SIZE 1024
 
 #define size_of_attribute(T, Attr) sizeof(((T*)0)->Attr)
+typedef uint8_t db_bool;
+#define db_true 1
+#define db_false 0
+#define DEFAULT_DB_NAME ".db.db"
 
 // ---------- buffer ------------- 
 typedef struct __buf {
@@ -45,7 +49,7 @@ typedef struct {
 void serialize_row(row_t* , void*);
 void deserialize_row(void* , row_t*);
 
-// ----------- table & page ------------ 
+// ----------- table & page & cursor ------------ 
 #define PAGE_SIZE 4096
 #define TABLE_MAX_PAGES 100
 const uint32_t ROWS_PER_PAGE = PAGE_SIZE / ROW_SIZE;
@@ -66,9 +70,19 @@ typedef struct {
   page_t* pager;
 } table_t;
 
+typedef struct {
+  table_t* table;
+  uint32_t row_num;
+  db_bool end_of_table;
+} cursor_t;
+
 void* row_slot(table_t* table, uint32_t row_num);
 table_t* new_table();
 void free_table(table_t* table);
+cursor_t* table_start(table_t* table);
+cursor_t* table_end(table_t* table);
+void* cursor_value(cursor_t* cursor);
+void  cursor_advance(cursor_t* cursor);
 
 // ----------- sql -------------
 typedef enum { META_COMMAND_SUCCESS, META_COMMAND_UNRICOGNIZED_COMMAND } MetaCommandResult;
@@ -101,8 +115,16 @@ table_t* db_open(const char* filename);
 void db_close(table_t*);
 
 int main(int argc, char** argv) {
+  char* db_name;
+
+  if (argc < 2) {
+    db_name = DEFAULT_DB_NAME;
+  } else {
+    db_name = argv[1];
+  }
+
   buf_t* read_buf = new_buf();
-  table_t* table = db_open("row.db");
+  table_t* table = db_open(db_name);
   while(1) {
     print_prompt();
     readline_from_stdin(read_buf);
@@ -185,8 +207,6 @@ PrepareResult prepare_statement(buf_t* buf, statement_t* statement) {
     char* username = strtok(NULL, " ");
     char* email = strtok(NULL, " ");
 
-    // int arg_assigned = sscanf(buf->buf, "insert %d %s %s", 
-    //                           &(statement->row_to_insert.id), &(statement->row_to_insert.username), &(statement->row_to_insert.email));
     if ( id_string == NULL || username == NULL || email == NULL ) {
       return PREPARE_SYTAX_ERROR;
     }
@@ -245,8 +265,11 @@ ExecuteResult execute_insert(statement_t* statement, table_t* table) {
   }
 
   row_t* row_to_insert = &(statement->row_to_insert);
-  serialize_row(row_to_insert, row_slot(table, table->num_rows));
+  cursor_t* cursor = table_end(table);
+  serialize_row(row_to_insert, cursor_value(cursor));
   table->num_rows += 1;
+
+  free(cursor);
 
   return EXECUTE_SUCCESS;
 }
@@ -256,11 +279,17 @@ void print_row(row_t* row) {
 }
 
 ExecuteResult execute_select(statement_t* statement, table_t* table) {
+  cursor_t* cursor = table_start(table);
+
   row_t row;
-  for(uint32_t i = 0; i < table->num_rows; i++) {
-    deserialize_row(row_slot(table, i), &row);
+  while(!cursor->end_of_table) {
+    deserialize_row(cursor_value(cursor), &row);
     print_row(&row);
+    cursor_advance(cursor);
   }
+
+  free(cursor);
+
   return EXECUTE_SUCCESS;
 }
 
@@ -271,29 +300,13 @@ ExecuteResult execute_statement(statement_t* statement, table_t* table) {
   }
 }
 
-table_t* new_table() {
-  table_t* table = (table_t*) malloc(sizeof(table_t));
-  table->num_rows = 0;
-  for(uint32_t i = 0; i < TABLE_MAX_PAGES; i++)
-  ;
-    // table->pages[i] = NULL;
-  return table;
-}
-
-void free_table(table_t* table) {
-  // for(int i=0; table->pages[i]; i++) {
-  //   free(table->pages[i]);
-  // }
-  free(table);
-}
-
 table_t* db_open(const char* filename) {
   page_t* pager = page_open(filename);
   uint32_t num_rows = pager->file_length / ROW_SIZE;
   
   table_t* table = malloc(sizeof(table_t));
-  table->num_rows = num_rows;
   table->pager = pager;
+  table->num_rows = num_rows;
 
   return table;
 }
@@ -368,6 +381,8 @@ void db_close(table_t* table) {
     uint32_t page_num = num_full_pages;
     if (pager->pages[page_num] != NULL) {
       page_flush(pager, page_num, num_additional_rows * ROW_SIZE);
+      free(pager->pages[page_num]);
+      pager->pages[page_num] = NULL;
     }
   }
 
@@ -407,5 +422,41 @@ void page_flush(page_t* pager, uint32_t page_num, uint32_t size) {
   if (bytes_written == -1) {
     printf("Error writing\n");
     exit(EXIT_FAILURE);
+  }
+}
+
+cursor_t* table_start(table_t* table) {
+  cursor_t* cursor = malloc(sizeof(cursor_t));
+  cursor->table = table;
+  cursor->row_num = 0;
+  cursor->end_of_table = (table->num_rows == 0);
+
+  return cursor;
+}
+
+cursor_t* table_end(table_t* table) {
+  cursor_t* cursor = malloc(sizeof(cursor_t));
+  cursor->table = table;
+  cursor->row_num = table->num_rows;
+  cursor->end_of_table = db_true;
+
+  return cursor;
+}
+
+void* cursor_value(cursor_t* cursor) {
+  uint32_t row_num = cursor->row_num;
+  uint32_t page_num = row_num / ROWS_PER_PAGE;
+  void* page = get_page(cursor->table->pager, page_num);
+  uint32_t row_offset = row_num % ROWS_PER_PAGE;
+  uint32_t byte_offset = row_offset * ROW_SIZE;
+
+  return page + byte_offset;
+}
+
+void  cursor_advance(cursor_t* cursor) {
+  cursor->row_num += 1;
+
+  if (cursor->row_num >= cursor->table->num_rows) {
+    cursor->end_of_table = db_true;
   }
 }

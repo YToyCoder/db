@@ -9,7 +9,7 @@
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/build/db_exe",
-      "args": [],
+      "args": [ ".test.db" ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
       "environment": [],
