@@ -1,0 +1,11 @@
+{
+  "files.associations": {
+    "tree.h": "c",
+    "table.h": "c",
+    "row.h": "c",
+    "stdlib.h": "c",
+    "buffer.h": "c",
+    "page.h": "c",
+    "string.h": "c"
+  }
+}

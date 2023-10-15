@@ -10,6 +10,12 @@ target_sources(
   db
   PRIVATE 
   main.c
+  buffer.c
+  page.c
+  row.c
+  tree.c
+  table.c
+  db.c
 )
 
 set_target_properties(db PROPERTIES OUTPUT_NAME "db_exe")
