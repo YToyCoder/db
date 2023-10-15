@@ -2,6 +2,7 @@
 #include "tree.h"
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 
 MetaCommandResult do_meta_command(buf_t* buf, table_t* table) {
   if(strcmp(buf->buf, ".exit") == 0) {
@@ -15,7 +16,7 @@ MetaCommandResult do_meta_command(buf_t* buf, table_t* table) {
   }
   else if (strcmp(buf->buf, ".btree") == 0) {
     printf("Tree:\n");
-    print_leaf_node(get_page(table->pager, 0));
+    print_tree(table->pager, 0, 0);
     return META_COMMAND_SUCCESS;
   } 
   else {
@@ -65,8 +66,6 @@ PrepareResult prepare_statement(buf_t* buf, statement_t* statement) {
 ExecuteResult execute_insert(statement_t* statement, table_t* table) {
   void* node = get_page(table->pager, table->root_page_num);
   uint32_t num_cells = (*leaf_node_num_cells(node));
-  if (num_cells >= LEAF_NODE_MAX_CELLS)
-    return EXECUTE_TABLE_FULL;
 
   row_t* row_to_insert = &(statement->row_to_insert);
   uint32_t key_to_insert = row_to_insert->id;
@@ -122,6 +121,7 @@ table_t* db_open(const char* filename) {
   if (pager->num_pages == 0) {
     void* root_node = get_page(pager, 0);
     initialize_leaf_node(root_node);
+    set_node_root(root_node, db_true);
   }
 
   return table;
