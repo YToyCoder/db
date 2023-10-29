@@ -53,6 +53,7 @@ typedef enum { NODE_INTERNAL, NODE_LEAF } NodeKind;
 #define INTERNAL_NODE_KEY_SIZE sizeof(uint32_t)
 #define INTERNAL_NODE_CHILD_SIZE sizeof(uint32_t)
 #define INTERNAL_NODE_CELL_SIZE (INTERNAL_NODE_CHILD_SIZE + INTERNAL_NODE_KEY_SIZE)
+#define INVALID_PAGE_NUM UINT32_MAX
 
 #include "row.h"
 #include "table.h"
@@ -64,7 +65,7 @@ void set_node_kind(void* node, NodeKind type);
 void leaf_node_split_and_insert(cursor_t* cursor, uint32_t key, row_t* value);
 uint32_t get_unused_page_num(page_t* pager);
 void create_new_root(table_t* table, uint32_t right_child_page_num);
-uint32_t get_node_max_key(void* node);
+uint32_t get_node_max_key(page_t* pager,void* node);
 
 uint32_t internal_node_find_child(void* node, uint32_t key);
 void internal_node_insert(table_t* table, uint32_t parent_page_num, uint32_t child_page_num);
@@ -74,6 +75,7 @@ uint32_t* internal_node_cell(void* node, uint32_t cell_num);
 uint32_t* internal_node_child(void* node, uint32_t child_num);
 uint32_t* internal_node_key(void* node, uint32_t key_num);
 cursor_t* internal_node_find(table_t* table, uint32_t page_num, uint32_t key);
+void internal_node_split_and_insert(table_t* table, uint32_t parent_page_num, uint32_t child_page_num);
 void initialize_internal_node(void* node);
 void update_internal_node_key(void* node, uint32_t old_key, uint32_t new_key);
 
